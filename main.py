@@ -19,14 +19,12 @@ class Strategy:
         #     self.mine.append(PlayerFragment.from_dict(frag))
         self.config = Config()
         self.config.update(config)
-        self.debug(str(config))
 
     def run(self):
         while True:
             data = json.loads(input())
             cmd = self.on_tick(data)
             print(json.dumps(cmd))
-            self.debug(json.dumps(cmd))
 
     def find_nearest_object(self, objects: list):
         nearest = None
@@ -49,7 +47,6 @@ class Strategy:
             if self.mine[0].get_distance_to(self.way_points[self.next_way_point]) < 10:
                 self.next_way_point = (self.next_way_point + 1) % len(self.way_points)
             return {'X': self.way_points[self.next_way_point].x, 'Y': self.way_points[self.next_way_point].y}
-
 
     def generate_way_points(self):
         step = self.config.GAME_WIDTH / 4
@@ -75,15 +72,8 @@ class Strategy:
             return self.find_vector_to_move()
         return {'X': 0, 'Y': 0, 'Debug': 'Died'}
 
-    @staticmethod
-    def debug(string: str):
-        with open('c:\\temp\\aicups.log', 'a') as file:
-            file.write(string + '\n')
-
 
 if __name__ == '__main__':
-    with open('c:\\temp\\aicups.log', 'w') as file:
-        file.write('')
     conf = json.loads(input())
     strategy = Strategy(conf)
     strategy.run()
