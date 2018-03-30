@@ -14,6 +14,7 @@ class Strategy:
     move = Move(0, 0, '', False, False, {})
     tick = 0
     split_lock = False
+    need_consolidate = False
 
     def __init__(self, config: dict):
         self.mine = []
@@ -41,32 +42,42 @@ class Strategy:
         return nearest
 
     def go_to(self, coord: Coord):
-        self.move.x = coord.x
-        self.move.y = coord.y
+        if self.need_consolidate:
+            self.move.x = coord.x
+            self.move.y = coord.y
+        else:
+            self.move.x = (coord.x - self.mine[0].x) * 100
+            self.move.y = (coord.y - self.mine[0].y) * 100
 
     def find_vector_to_move(self):
+        fragment_flag = False
         if len(self.players_fragments) > 0:
             for fragment in self.players_fragments:
                 for my_frag in self.mine:
                     if fragment.mass / 1.2 > my_frag.mass:
                         self.go_to(my_frag.find_vector_move_from(fragment))
                         self.move.split = False
+                        self.need_consolidate = True
                         return
                     if fragment.mass * 1.2 < my_frag.mass / 2:
                         if my_frag.get_distance_to(fragment) < my_frag.split_dist:
                             if my_frag.get_angle_to(fragment) - my_frag.speed_angle < math.pi / 12 and not self.split_lock:
                                 self.move.split = True
+                                self.need_consolidate = True
                     if fragment.mass * 1.2 > my_frag.mass / 2:
                         self.move.split = False
                         self.split_lock = True
                 if fragment.mass < self.mine[0].mass / 1.2:
                     self.go_to(self.mine[0].find_vector_move_to(fragment))
-                    return
-        if len(self.food) > 0:
-            nearest = self.find_nearest_object(self.food)
-            self.go_to(self.mine[0].find_vector_move_to(nearest))
-        else:
-            self.go_to(self.way_point)
+                    fragment_flag = True
+                    break
+        if not fragment_flag:
+            self.need_consolidate = False
+            if len(self.food) > 0:
+                nearest = self.find_nearest_object(self.food)
+                self.go_to(self.mine[0].find_vector_move_to(nearest))
+            else:
+                self.go_to(self.way_point)
 
     def prepare_data(self):
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD]
@@ -80,6 +91,8 @@ class Strategy:
             self.move.split = False
         self.move.eject = False
         self.split_lock = False
+        if len(self.mine) == 1:
+            self.need_consolidate = False
 
     @staticmethod
     def update_config(config: dict):
