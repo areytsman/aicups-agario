@@ -1,12 +1,17 @@
 from math import *
 from modules.obj_types import Type
-from modules.game_config import Config
+from modules import game_config
 
 
-class Obj:
-    def __init__(self, x: float, y: float, mass: float, radius: float, obj_type: Type = Type.FOOD, oid: str = None):
+class Coord:
+    def __init__(self, x, y):
         self.x = x
         self.y = y
+
+
+class Obj(Coord):
+    def __init__(self, x: float, y: float, mass: float, radius: float, obj_type: Type = Type.FOOD, oid: str = None):
+        super().__init__(x, y)
         self.mass = mass
         self.radius = radius
         self.obj_type = obj_type
@@ -21,13 +26,13 @@ class Obj:
         x = obj['X']
         y = obj['Y']
         if obj_type == Type.FOOD:
-            mass = Config.FOOD_MASS
+            mass = game_config.FOOD_MASS
         else:
             mass = obj['M']
         if obj_type == Type.VIRUS:
-            radius = Config.VIRUS_RADIUS
+            radius = game_config.VIRUS_RADIUS
         elif obj_type == Type.FOOD:
-            radius = Config.FOOD_RADIUS
+            radius = game_config.FOOD_RADIUS
         else:
             radius = obj['R']
         if obj_type == Type.FOOD:
@@ -44,6 +49,7 @@ class PlayerFragment(Obj):
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.time_to_fade = time_to_fade
+        self.max_speed = game_config.SPEED_FACTOR / sqrt(mass)
 
     @staticmethod
     def from_dict(mine: dict):
@@ -60,14 +66,46 @@ class PlayerFragment(Obj):
             time_to_fade = None
         return PlayerFragment(x, y, mass, radius, oid, speed_x, speed_y, time_to_fade)
 
+    def calc_time_to_go(self, coord: Coord):
+        vector = self.find_vector_move_to(coord)
+        vector_len = sqrt((self.x - vector.x) ** 2 + (self.y - vector.y) ** 2)
+        time = vector_len / self.max_speed
+        return time
 
-class Move:
-    def __init__(self, x: float, y: float, debug: str, sprite: dict, split: bool = False, eject: bool = False):
-        pass
+    def find_vector_move_to(self, coord: Coord):
+        # Finding unit vector
+        vector_len = sqrt(self.speed_x ** 2 + self.speed_y ** 2)
+        k = 1 / vector_len
+        u_vector_x = self.x + self.speed_x * k
+        u_vector_y = self.y + self.speed_y * k
+        # Game accelerate formula
+        ax = (u_vector_x * self.max_speed - self.speed_x) * game_config.INERTION_FACTOR / self.mass
+        ay = (u_vector_y * self.max_speed - self.speed_y) * game_config.INERTION_FACTOR / self.mass
+        # Finding time to zeroring speed
+        t = -self.speed_x / ax
+        # Finding coordinate where speed will zero
+        x0 = self.x + self.speed_x * t + ax * (t ** 2) / 2
+        y0 = self.y + self.speed_y * t + ay * (t ** 2) / 2
+        # Find delta
+        dx = self.x - x0
+        dy = self.y - y0
+        return Coord(coord.x + dx, coord.y + dy)
+
+    def find_vector_move_from(self, coord: Coord):
+        opposite_coord = Coord(2 * self.x - coord.x, 2 * self.y - coord.y)
+        return self.find_vector_move_to(opposite_coord)
 
 
-class Coord:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+class Move(Coord):
+    def __init__(self, x: float, y: float, debug: str, split: bool = False, eject: bool = False, sprite: dict = None):
+        super().__init__(x, y)
+        self.debug = debug
+        self.sprite = sprite
+        self.split = split
+        self.eject = eject
+
+    def to_dict(self):
+        return {'X': self.x, 'Y': self.y, 'Debug': self.debug, 'Split': self.split, 'Eject': self.eject,
+                'Sprite': self.sprite}
+
 
