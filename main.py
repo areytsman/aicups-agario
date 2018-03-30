@@ -2,7 +2,8 @@ import json
 from modules.obj_types import Type
 from modules import game_config
 from modules.classes import Obj, PlayerFragment, Coord, Move
-import sys
+from random import randint
+import math
 
 
 class Strategy:
@@ -11,20 +12,21 @@ class Strategy:
     viruses = []
     players_fragments = []
     move = Move(0, 0, '', False, False, {})
-    way_points = []
-    next_way_point = 0
+    tick = 0
+    split_lock = False
 
     def __init__(self, config: dict):
         self.mine = []
         self.update_config(config)
         self.debug(str(config))
+        self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
 
     def run(self):
         while True:
             data = json.loads(input())
             cmd = self.on_tick(data)
             print(json.dumps(cmd))
-            self.debug(json.dumps(cmd))
+            self.debug(str(self.tick) + '\t' + json.dumps(cmd))
 
     def find_nearest_object(self, objects: list):
         nearest = None
@@ -50,28 +52,36 @@ class Strategy:
                 for my_frag in self.mine:
                     if fragment.mass / 1.2 > my_frag.mass:
                         self.go_to(my_frag.find_vector_move_from(fragment))
+                        self.move.split = False
                         return
+                    if fragment.mass * 1.2 < my_frag.mass / 2:
+                        if my_frag.get_distance_to(fragment) < my_frag.split_dist:
+                            if my_frag.get_angle_to(fragment) - my_frag.speed_angle < math.pi / 12 and not self.split_lock:
+                                self.move.split = True
+                    if fragment.mass * 1.2 > my_frag.mass / 2:
+                        self.move.split = False
+                        self.split_lock = True
                 if fragment.mass < self.mine[0].mass / 1.2:
                     self.go_to(self.mine[0].find_vector_move_to(fragment))
-                    self.debug('has fragments')
                     return
         if len(self.food) > 0:
             nearest = self.find_nearest_object(self.food)
             self.go_to(self.mine[0].find_vector_move_to(nearest))
         else:
-            if self.mine[0].get_distance_to(self.way_points[self.next_way_point]) < 10:
-                self.next_way_point = (self.next_way_point + 1) % len(self.way_points)
-            self.go_to(self.way_points[self.next_way_point])
-
-    def generate_way_points(self):
-        step = game_config.GAME_WIDTH / 4
-        return [Coord(step, step), Coord(step, 3 * step), Coord(3 * step, 3 * step), Coord(3 * step, step)]
+            self.go_to(self.way_point)
 
     def prepare_data(self):
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.players_fragments = [obj for obj in self.visible_objects if obj.obj_type == Type.PLAYER]
-        self.way_points = self.generate_way_points()
+        if self.mine[0].get_distance_to(self.way_point) < 10:
+            self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
+        if self.tick % 500 == 0:
+            self.move.split = True
+        else:
+            self.move.split = False
+        self.move.eject = False
+        self.split_lock = False
 
     @staticmethod
     def update_config(config: dict):
@@ -88,6 +98,7 @@ class Strategy:
         game_config.SPEED_FACTOR = config['SPEED_FACTOR']
 
     def on_tick(self, data):
+        self.tick += 1
         mine, objects = data['Mine'], data['Objects']
         if mine:
             self.visible_objects = []
@@ -98,6 +109,7 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
+            self.debug(str(self.mine[0].x) + ';' + str(self.mine[0].y))
             self.find_vector_to_move()
         return self.move.to_dict()
 
@@ -109,10 +121,15 @@ class Strategy:
 
 if __name__ == '__main__':
     with open('aicups.log', 'w') as file:
-        file.write('')
+        file.write('start\n')
     conf = json.loads(input())
+    with open('aicups.log', 'a') as file:
+        file.write('input loaded\n')
     strategy = Strategy(conf)
+    with open('aicups.log', 'a') as file:
+        file.write('Strategy created\n')
     try:
         strategy.run()
     except Exception as e:
-        Strategy.debug(str(e) + sys.exc_info()[0])
+        with open('aicups.log', 'a') as file:
+            file.write(str(e))

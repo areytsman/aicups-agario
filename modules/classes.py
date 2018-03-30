@@ -50,6 +50,11 @@ class PlayerFragment(Obj):
         self.speed_y = speed_y
         self.time_to_fade = time_to_fade
         self.max_speed = game_config.SPEED_FACTOR / sqrt(mass)
+        self.split_dist = self.calc_split_dist()
+        self.speed_angle = self.get_angle_to(Coord(self.x + speed_x, self.y + speed_y))
+
+    def get_angle_to(self, coord: Coord):
+        return atan2(coord.y - self.y, coord.x - self.x)
 
     @staticmethod
     def from_dict(mine: dict):
@@ -66,6 +71,16 @@ class PlayerFragment(Obj):
             time_to_fade = None
         return PlayerFragment(x, y, mass, radius, oid, speed_x, speed_y, time_to_fade)
 
+    def calc_split_dist(self):
+        # Game accelerate formula
+        k = 1 / game_config.SPLIT_SPEED
+        u_vector = game_config.SPLIT_SPEED * k
+        a = (u_vector * (game_config.SPLIT_SPEED / (sqrt(self.mass) / 2)) - game_config.SPLIT_SPEED) * game_config.INERTION_FACTOR / (self.mass / 2)
+        # Finding time to zeroring speed
+        t = -game_config.SPLIT_SPEED / a
+        dist = game_config.SPLIT_SPEED * t + a * (t ** 2) / 2
+        return dist
+
     def calc_time_to_go(self, coord: Coord):
         vector = self.find_vector_move_to(coord)
         vector_len = sqrt((self.x - vector.x) ** 2 + (self.y - vector.y) ** 2)
@@ -75,7 +90,10 @@ class PlayerFragment(Obj):
     def find_vector_move_to(self, coord: Coord):
         # Finding unit vector
         vector_len = sqrt(self.speed_x ** 2 + self.speed_y ** 2)
-        k = 1 / vector_len
+        if vector_len < 1:
+            k = 0
+        else:
+            k = 1 / vector_len
         u_vector_x = self.x + self.speed_x * k
         u_vector_y = self.y + self.speed_y * k
         # Game accelerate formula
