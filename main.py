@@ -107,7 +107,6 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
-            self.debug(str(self.mine[0].x) + ';' + str(self.mine[0].y))
             self.find_vector_to_move()
         return self.move.to_dict()
 
