@@ -2,7 +2,6 @@ import json
 from modules.obj_types import Type
 from modules import game_config
 from modules.classes import Obj, PlayerFragment, Coord, Move
-import sys
 
 
 class Strategy:
@@ -17,7 +16,6 @@ class Strategy:
     def __init__(self, config: dict):
         self.mine = []
         self.update_config(config)
-        self.debug(str(config))
 
     def run(self):
         while True:
@@ -52,7 +50,6 @@ class Strategy:
                         return
                 if fragment.mass < self.mine[0].mass / 1.2:
                     self.go_to(self.mine[0].find_vector_move_to(fragment))
-                    self.debug('has fragments')
                     return
         if len(self.food) > 0:
             nearest = self.find_nearest_object(self.food)
@@ -100,18 +97,12 @@ class Strategy:
             self.find_vector_to_move()
         return self.move.to_dict()
 
-    @staticmethod
-    def debug(string: str):
-        with open('aicups.log', 'a') as file:
-            file.write(string + '\n')
-
 
 if __name__ == '__main__':
     with open('aicups.log', 'w') as file:
         file.write('')
     conf = json.loads(input())
     strategy = Strategy(conf)
-    try:
-        strategy.run()
-    except Exception as e:
-        Strategy.debug(str(e) + sys.exc_info()[0])
+    strategy.run()
+
+
