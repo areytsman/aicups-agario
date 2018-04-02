@@ -72,8 +72,24 @@ class Strategy:
             for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
                 if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
                     angle = my_frag.get_angle_to(virus)
-                    length = 1000 / my_frag.get_distance_to(virus)
+                    length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
                     my_frag_vector += Vector(angle - math.pi, length)
+            if my_frag.x * my_frag.y < 4 * my_frag.radius ** 2:
+                length = 4 * my_frag.radius ** 2 / my_frag.x * my_frag.y - 1
+                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                my_frag_vector += Vector(angle, length)
+            if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < 4 * my_frag.radius ** 2:
+                length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
+                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                my_frag_vector += Vector(angle, length)
+            if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
+                length = 4 * my_frag.radius ** 2 / my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                my_frag_vector += Vector(angle, length)
+            if (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
+                length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                my_frag_vector += Vector(angle, length)
             if my_frag_vector.length > vector.length:
                 vector = my_frag_vector
                 frag = my_frag
@@ -93,9 +109,6 @@ class Strategy:
                             if abs(my_frag.get_angle_to(fragment) - my_frag.speed_angle) < math.pi / 12 and not self.split_lock:
                                 self.move.split = True
                                 self.need_consolidate = True
-                    elif my_frag.mass > fragment.mass * 1.2 > my_frag.mass / 2:
-                        self.move.split = False
-                        self.split_lock = True
         vector_to_go, frag = self.calc_vector_to_go()
         self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
 
