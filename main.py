@@ -47,6 +47,7 @@ class Strategy:
 
     def calc_vector_to_go(self):
         vector = Vector(0, 0)
+        frag = self.mine[0]
         for my_frag in self.mine:
             my_frag_vector = Vector(0, 0)
             for fragment in self.players_fragments:
@@ -75,8 +76,8 @@ class Strategy:
                     my_frag_vector += Vector(angle - math.pi, length)
             if my_frag_vector.length > vector.length:
                 vector = my_frag_vector
-
-        return vector
+                frag = my_frag
+        return vector, frag
 
     def find_vector_to_move(self):
         fragment_flag = False
@@ -96,8 +97,9 @@ class Strategy:
                     elif my_frag.mass > fragment.mass * 1.2 > my_frag.mass / 2:
                         self.move.split = False
                         self.split_lock = True
-        vector_to_go = self.calc_vector_to_go()
-        self.go_to(Coord(self.mine[0].x + vector_to_go.x, self.mine[0].y + vector_to_go.y))
+        vector_to_go, frag = self.calc_vector_to_go()
+        self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
+        #self.go_to(Coord(self.mine[0].x + vector_to_go.x, self.mine[0].y + vector_to_go.y))
 
     def prepare_data(self):
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD]
