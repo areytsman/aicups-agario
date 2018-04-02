@@ -127,3 +127,23 @@ class Move(Coord):
                 'Sprite': self.sprite}
 
 
+class Vector(Coord):
+    def __init__(self, angle, length):
+        super().__init__(length * cos(angle), length * sin(angle))
+        self.length = length
+        self.angle = angle
+
+    def __add__(self, other: Coord):
+        x = self.x + other.x
+        y = self.y + other.y
+        length = sqrt(x ** 2 + y ** 2)
+        angle = atan2(y, x)
+        return Vector(angle, length)
+
+    @staticmethod
+    def shift(coord1: Coord, coord2: Coord):
+        return Vector(coord2.x - coord1.x, coord2.y - coord1.y)
+
+    def add_by_coord(self, coord1: Coord, coord2: Coord):
+        return self + self.shift(coord1, coord2)
+

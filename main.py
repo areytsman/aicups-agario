@@ -1,7 +1,7 @@
 import json
 from modules.obj_types import Type
 from modules import game_config
-from modules.classes import Obj, PlayerFragment, Coord, Move
+from modules.classes import Obj, PlayerFragment, Coord, Move, Vector
 from random import randint
 import math
 
@@ -42,42 +42,62 @@ class Strategy:
         return nearest
 
     def go_to(self, coord: Coord):
-        if self.need_consolidate:
-            self.move.x = coord.x
-            self.move.y = coord.y
-        else:
-            self.move.x = (coord.x - self.mine[0].x) * 100
-            self.move.y = (coord.y - self.mine[0].y) * 100
+        self.move.x = coord.x
+        self.move.y = coord.y
+
+    def calc_vector_to_go(self):
+        vector = Vector(0, 0)
+        for my_frag in self.mine:
+            my_frag_vector = Vector(0, 0)
+            for fragment in self.players_fragments:
+                if fragment.mass / 1.2 > my_frag.mass:
+                    length = 10000 / my_frag.get_distance_to(fragment)
+                    angle = my_frag.get_angle_to(fragment)
+                    my_frag_vector += Vector(angle - math.pi, length)
+                if my_frag.mass / 2 < fragment.mass * 1.2 < my_frag.mass:
+                    length = 1500 / my_frag.get_distance_to(fragment)
+                    angle = my_frag.get_angle_to(fragment)
+                    my_frag_vector += Vector(angle, length)
+                if fragment.mass * 1.2 < my_frag.mass / 2:
+                    length = 2500 / my_frag.get_distance_to(fragment)
+                    angle = my_frag.get_angle_to(fragment)
+                    my_frag_vector += Vector(angle, length)
+            for piece in self.food:
+                length = 100 / my_frag.get_distance_to(piece)
+                angle = my_frag.get_angle_to(piece)
+                my_frag_vector += Vector(angle, length)
+            if my_frag_vector.length == 0:
+                my_frag_vector += Vector(my_frag.get_angle_to(self.way_point), 1)
+            for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
+                if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
+                    angle = my_frag.get_angle_to(virus)
+                    length = 1000 / my_frag.get_distance_to(virus)
+                    my_frag_vector += Vector(angle - math.pi, length)
+            if my_frag_vector.length > vector.length:
+                vector = my_frag_vector
+
+        return vector
 
     def find_vector_to_move(self):
         fragment_flag = False
         if len(self.players_fragments) > 0:
             for fragment in self.players_fragments:
                 for my_frag in self.mine:
-                    if fragment.mass / 1.2 > my_frag.mass:
-                        self.go_to(my_frag.find_vector_move_from(fragment))
+                    if fragment.mass > my_frag.mass * 1.2:
                         self.move.split = False
                         self.need_consolidate = True
-                        return
-                    if fragment.mass * 1.2 < my_frag.mass / 2:
+                        self.split_lock = True
+                        break
+                    elif fragment.mass * 1.2 < my_frag.mass / 2:
                         if my_frag.get_distance_to(fragment) < my_frag.split_dist:
-                            if my_frag.get_angle_to(fragment) - my_frag.speed_angle < math.pi / 12 and not self.split_lock:
+                            if abs(my_frag.get_angle_to(fragment) - my_frag.speed_angle) < math.pi / 12 and not self.split_lock:
                                 self.move.split = True
                                 self.need_consolidate = True
-                    if fragment.mass * 1.2 > my_frag.mass / 2:
+                    elif my_frag.mass > fragment.mass * 1.2 > my_frag.mass / 2:
                         self.move.split = False
                         self.split_lock = True
-                if fragment.mass < self.mine[0].mass / 1.2:
-                    self.go_to(self.mine[0].find_vector_move_to(fragment))
-                    fragment_flag = True
-                    break
-        if not fragment_flag:
-            self.need_consolidate = False
-            if len(self.food) > 0:
-                nearest = self.find_nearest_object(self.food)
-                self.go_to(self.mine[0].find_vector_move_to(nearest))
-            else:
-                self.go_to(self.way_point)
+        vector_to_go = self.calc_vector_to_go()
+        self.go_to(Coord(self.mine[0].x + vector_to_go.x, self.mine[0].y + vector_to_go.y))
 
     def prepare_data(self):
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD]
