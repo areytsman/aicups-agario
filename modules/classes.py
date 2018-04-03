@@ -33,12 +33,14 @@ class Obj(Coord):
             mass = obj['M']
         if obj_type == Type.VIRUS:
             radius = game_config.VIRUS_RADIUS
-        elif obj_type == Type.FOOD:
+        elif obj_type == Type.FOOD or obj_type == Type.EJECT:
             radius = game_config.FOOD_RADIUS
         else:
             radius = obj['R']
         if obj_type == Type.FOOD:
             oid = None
+        elif obj_type == Type.EJECT:
+            oid = obj['pId']
         else:
             oid = obj['Id']
         return Obj(x, y, mass, radius, obj_type, oid)

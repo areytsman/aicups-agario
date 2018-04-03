@@ -76,21 +76,41 @@ class Strategy:
                     length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
                     my_frag_vector += Vector(angle - math.pi, length)
             if my_frag.x * my_frag.y < 4 * my_frag.radius ** 2:
-                length = 4 * my_frag.radius ** 2 / my_frag.x * my_frag.y - 1
-                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                my_frag_vector += Vector(angle, length)
+                can_corner = False
+                for fragment in self.players_fragments:
+                    if fragment.x * fragment.y < 4 * my_frag.radius ** 2:
+                        can_corner = True
+                if not can_corner:
+                    length = 4 * my_frag.radius ** 2 / my_frag.x * my_frag.y - 1
+                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                    my_frag_vector += Vector(angle, length)
             if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < 4 * my_frag.radius ** 2:
-                length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
-                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                my_frag_vector += Vector(angle, length)
+                can_corner = False
+                for fragment in self.players_fragments:
+                    if (game_config.GAME_WIDTH - fragment.x) * fragment.y < 4 * my_frag.radius ** 2:
+                        can_corner = True
+                if not can_corner:
+                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
+                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                    my_frag_vector += Vector(angle, length)
             if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
-                length = 4 * my_frag.radius ** 2 / my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) - 1
-                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                my_frag_vector += Vector(angle, length)
+                can_corner = False
+                for fragment in self.players_fragments:
+                    if fragment.x * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
+                        can_corner = True
+                if not can_corner:
+                    length = 4 * my_frag.radius ** 2 / my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                    my_frag_vector += Vector(angle, length)
             if (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
-                length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) - 1
-                angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                my_frag_vector += Vector(angle, length)
+                can_corner = False
+                for fragment in self.players_fragments:
+                    if (game_config.GAME_WIDTH - fragment.x) * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
+                        can_corner = True
+                if not can_corner:
+                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
+                    my_frag_vector += Vector(angle, length)
             if my_frag_vector.length > vector.length:
                 vector = my_frag_vector
                 frag = my_frag
