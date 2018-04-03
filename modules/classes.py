@@ -27,6 +27,8 @@ class Obj(Coord):
         y = obj['Y']
         if obj_type == Type.FOOD:
             mass = game_config.FOOD_MASS
+        elif obj_type == Type.EJECT:
+            mass = game_config.EJECT_MASS
         else:
             mass = obj['M']
         if obj_type == Type.VIRUS:

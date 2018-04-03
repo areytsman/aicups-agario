@@ -11,6 +11,7 @@ class Strategy:
     food = []
     viruses = []
     players_fragments = []
+    ejects = []
     move = Move(0, 0, '', False, False, {})
     tick = 0
     split_lock = False
@@ -113,7 +114,7 @@ class Strategy:
         self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
 
     def prepare_data(self):
-        self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD]
+        self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.players_fragments = [obj for obj in self.visible_objects if obj.obj_type == Type.PLAYER]
         if self.mine[0].get_distance_to(self.way_point) < 10:
@@ -123,6 +124,7 @@ class Strategy:
         else:
             self.move.split = False
         self.move.eject = False
+        self.move.debug = ''
         self.split_lock = False
         if len(self.mine) == 1:
             self.need_consolidate = False
