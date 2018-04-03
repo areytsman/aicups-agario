@@ -1,17 +1,12 @@
 import json
 from modules.obj_types import Type
 from modules import game_config
+from modules.simulation import Simulation
 from modules.classes import *
 from random import randint
 import math
+import numpy
 
-with open('aicups.log', 'w') as file:
-    file.write('')
-
-file = open('aicups.log', 'a')
-
-def debug(string: str):
-    file.write(string + '\n')
 
 class Strategy:
     visible_objects = []
@@ -29,7 +24,6 @@ class Strategy:
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.debug = str(config)
-        debug(json.dumps(config))
 
     def run(self):
         while True:
@@ -55,109 +49,10 @@ class Strategy:
         self.move.x = coord.x
         self.move.y = coord.y
 
-    def calc_vector_to_go(self):
-        vector = Vector(0, 0)
-        frag = self.mine[0]
-        avoid_viruses = False
-        for my_frag in self.mine:
-            my_frag_vector = Vector(0, 0)
-            for fragment in self.enemy_fragments.values():
-                if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(fragment) < fragment.split_dist:
-                    angle = my_frag.get_angle_to(fragment)
-                    length = 10000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
-                    if fragment.speed_angle == 0:
-                        my_frag_vector += Vector(angle - math.pi, length)
-                    else:
-                        my_frag_vector += Vector(angle - math.pi, length)
-                if my_frag.mass / 2 < fragment.mass * 1.2 < my_frag.mass:
-                    length = 1500 / my_frag.get_distance_to(fragment)
-                    angle = my_frag.get_angle_to(fragment)
-                    my_frag_vector += Vector(angle, length)
-                if fragment.mass * 1.2 < my_frag.mass / 2:
-                    length = 2500 / my_frag.get_distance_to(fragment)
-                    angle = my_frag.get_angle_to(fragment)
-                    my_frag_vector += Vector(angle, length)
-                if game_config.MAX_FRAGS_CNT != len(self.mine):
-                    if fragment.mass * 1.2 > my_frag.mass / (game_config.MAX_FRAGS_CNT - len(self.mine)):
-                        avoid_viruses = True
-            for piece in self.food:
-                if piece.x * piece.y < 4 * my_frag.radius ** 2 or \
-                   (game_config.GAME_WIDTH - piece.x) * piece.y < 4 * my_frag.radius ** 2 or \
-                   piece.x * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2 or \
-                   (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2:
-                    continue
-                length = 100 / my_frag.get_distance_to(piece)
-                angle = my_frag.get_angle_to(piece)
-                my_frag_vector += Vector(angle, length)
-            if my_frag_vector.length == 0:
-                my_frag_vector += Vector(my_frag.get_angle_to(self.way_point), 1)
-            if avoid_viruses or self.split_lock:
-                for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
-                    if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
-                        angle = my_frag.get_angle_to(virus)
-                        length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
-                        my_frag_vector += Vector(angle - math.pi, length)
-            if my_frag.x * my_frag.y < 4 * my_frag.radius ** 2:
-                can_corner = False
-                for fragment in self.enemy_fragments.values():
-                    if fragment.x * fragment.y < 4 * my_frag.radius ** 2:
-                        can_corner = True
-                if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / my_frag.x * my_frag.y - 1
-                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                    my_frag_vector += Vector(angle, length)
-            if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < 4 * my_frag.radius ** 2:
-                can_corner = False
-                for fragment in self.enemy_fragments.values():
-                    if (game_config.GAME_WIDTH - fragment.x) * fragment.y < 4 * my_frag.radius ** 2:
-                        can_corner = True
-                if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
-                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                    my_frag_vector += Vector(angle, length)
-            if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
-                can_corner = False
-                for fragment in self.enemy_fragments.values():
-                    if fragment.x * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
-                        can_corner = True
-                if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) - 1
-                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                    my_frag_vector += Vector(angle, length)
-            if (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
-                can_corner = False
-                for fragment in self.enemy_fragments.values():
-                    if (game_config.GAME_WIDTH - fragment.x) * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
-                        can_corner = True
-                if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) - 1
-                    angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
-                    my_frag_vector += Vector(angle, length)
-            if my_frag_vector.length > vector.length:
-                vector = my_frag_vector
-                frag = my_frag
-        return vector, frag
-
     def find_vector_to_move(self):
-        if len(self.enemy_fragments.values()) > 0:
-            for fragment in self.enemy_fragments.values():
-                for my_frag in self.mine:
-                    if fragment.mass > my_frag.mass * 1.2:
-                        self.move.split = False
-                        self.need_consolidate = True
-                        self.split_lock = True
-                        break
-                    elif fragment.mass * 1.2 < my_frag.mass / 2:
-                        if my_frag.get_distance_to(fragment) < my_frag.split_dist:
-                            if abs(my_frag.get_angle_to(fragment) - my_frag.speed_angle) < math.pi / 12 and not self.split_lock:
-                                self.move.split = True
-                                self.need_consolidate = True
-                    elif fragment.mass * 1.2 > my_frag.mass / 2:
-                        self.move.split = False
-                        self.need_consolidate = True
-                        self.split_lock = True
-        vector_to_go, frag = self.calc_vector_to_go()
-        self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
+        for angle in numpy.linspace(0, math.pi * 2, 64):
+            sim = Simulation(angle, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
+        self.go_to(Coord(0, 0))
 
     def update_enemy_fragments(self):
         new_fragments = {f.oid: EnemyFragment(f) for f in self.visible_objects if f.obj_type == Type.PLAYER}
@@ -205,7 +100,6 @@ class Strategy:
 
     def on_tick(self, data):
         self.tick += 1
-        debug(str(self.tick) + '\t' + json.dumps(data))
         mine, objects = data['Mine'], data['Objects']
         if mine:
             self.visible_objects = []
