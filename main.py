@@ -21,6 +21,7 @@ class Strategy:
         self.mine = []
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
+        self.move.debug(str(config))
 
     def run(self):
         while True:
@@ -130,6 +131,10 @@ class Strategy:
                             if abs(my_frag.get_angle_to(fragment) - my_frag.speed_angle) < math.pi / 12 and not self.split_lock:
                                 self.move.split = True
                                 self.need_consolidate = True
+                    elif fragment.mass * 1.2 > my_frag.mass / 2:
+                        self.move.split = False
+                        self.need_consolidate = True
+                        self.split_lock = True
         vector_to_go, frag = self.calc_vector_to_go()
         self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
 
@@ -144,7 +149,8 @@ class Strategy:
         else:
             self.move.split = False
         self.move.eject = False
-        self.move.debug = ''
+        if self.tick > 2:
+            self.move.debug = ''
         self.split_lock = False
         if len(self.mine) == 1:
             self.need_consolidate = False
