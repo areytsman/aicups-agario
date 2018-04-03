@@ -1,16 +1,23 @@
 import json
 from modules.obj_types import Type
 from modules import game_config
-from modules.classes import Obj, PlayerFragment, Coord, Move, Vector
+from modules.classes import *
 from random import randint
 import math
 
+with open('aicups.log', 'w') as file:
+    file.write('')
+
+file = open('aicups.log', 'a')
+
+def debug(string: str):
+    file.write(string + '\n')
 
 class Strategy:
     visible_objects = []
     food = []
     viruses = []
-    players_fragments = []
+    enemy_fragments = {}
     ejects = []
     move = Move(0, 0, '', False, False, {})
     tick = 0
@@ -21,7 +28,8 @@ class Strategy:
         self.mine = []
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
-        self.move.debug(str(config))
+        self.move.debug = str(config)
+        debug(json.dumps(config))
 
     def run(self):
         while True:
@@ -50,13 +58,17 @@ class Strategy:
     def calc_vector_to_go(self):
         vector = Vector(0, 0)
         frag = self.mine[0]
+        avoid_viruses = False
         for my_frag in self.mine:
             my_frag_vector = Vector(0, 0)
-            for fragment in self.players_fragments:
-                if fragment.mass / 1.2 > my_frag.mass:
-                    length = 10000 / my_frag.get_distance_to(fragment)
+            for fragment in self.enemy_fragments.values():
+                if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
-                    my_frag_vector += Vector(angle - math.pi, length)
+                    length = 10000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
+                    if fragment.speed_angle == 0:
+                        my_frag_vector += Vector(angle - math.pi, length)
+                    else:
+                        my_frag_vector += Vector(angle - math.pi, length)
                 if my_frag.mass / 2 < fragment.mass * 1.2 < my_frag.mass:
                     length = 1500 / my_frag.get_distance_to(fragment)
                     angle = my_frag.get_angle_to(fragment)
@@ -65,20 +77,29 @@ class Strategy:
                     length = 2500 / my_frag.get_distance_to(fragment)
                     angle = my_frag.get_angle_to(fragment)
                     my_frag_vector += Vector(angle, length)
+                if game_config.MAX_FRAGS_CNT != len(self.mine):
+                    if fragment.mass * 1.2 > my_frag.mass / (game_config.MAX_FRAGS_CNT - len(self.mine)):
+                        avoid_viruses = True
             for piece in self.food:
+                if piece.x * piece.y < 4 * my_frag.radius ** 2 or \
+                   (game_config.GAME_WIDTH - piece.x) * piece.y < 4 * my_frag.radius ** 2 or \
+                   piece.x * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2 or \
+                   (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2:
+                    continue
                 length = 100 / my_frag.get_distance_to(piece)
                 angle = my_frag.get_angle_to(piece)
                 my_frag_vector += Vector(angle, length)
             if my_frag_vector.length == 0:
                 my_frag_vector += Vector(my_frag.get_angle_to(self.way_point), 1)
-            for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
-                if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
-                    angle = my_frag.get_angle_to(virus)
-                    length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
-                    my_frag_vector += Vector(angle - math.pi, length)
+            if avoid_viruses or self.split_lock:
+                for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
+                    if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
+                        angle = my_frag.get_angle_to(virus)
+                        length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
+                        my_frag_vector += Vector(angle - math.pi, length)
             if my_frag.x * my_frag.y < 4 * my_frag.radius ** 2:
                 can_corner = False
-                for fragment in self.players_fragments:
+                for fragment in self.enemy_fragments.values():
                     if fragment.x * fragment.y < 4 * my_frag.radius ** 2:
                         can_corner = True
                 if not can_corner:
@@ -87,7 +108,7 @@ class Strategy:
                     my_frag_vector += Vector(angle, length)
             if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < 4 * my_frag.radius ** 2:
                 can_corner = False
-                for fragment in self.players_fragments:
+                for fragment in self.enemy_fragments.values():
                     if (game_config.GAME_WIDTH - fragment.x) * fragment.y < 4 * my_frag.radius ** 2:
                         can_corner = True
                 if not can_corner:
@@ -96,7 +117,7 @@ class Strategy:
                     my_frag_vector += Vector(angle, length)
             if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
                 can_corner = False
-                for fragment in self.players_fragments:
+                for fragment in self.enemy_fragments.values():
                     if fragment.x * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
                         can_corner = True
                 if not can_corner:
@@ -105,7 +126,7 @@ class Strategy:
                     my_frag_vector += Vector(angle, length)
             if (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
                 can_corner = False
-                for fragment in self.players_fragments:
+                for fragment in self.enemy_fragments.values():
                     if (game_config.GAME_WIDTH - fragment.x) * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
                         can_corner = True
                 if not can_corner:
@@ -118,8 +139,8 @@ class Strategy:
         return vector, frag
 
     def find_vector_to_move(self):
-        if len(self.players_fragments) > 0:
-            for fragment in self.players_fragments:
+        if len(self.enemy_fragments.values()) > 0:
+            for fragment in self.enemy_fragments.values():
                 for my_frag in self.mine:
                     if fragment.mass > my_frag.mass * 1.2:
                         self.move.split = False
@@ -138,16 +159,29 @@ class Strategy:
         vector_to_go, frag = self.calc_vector_to_go()
         self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
 
+    def update_enemy_fragments(self):
+        new_fragments = {f.oid: EnemyFragment(f) for f in self.visible_objects if f.obj_type == Type.PLAYER}
+        if len(self.enemy_fragments) == 0:
+            self.enemy_fragments = new_fragments
+            return
+        to_delete = []
+        for key in self.enemy_fragments.keys():
+            if key in new_fragments.keys():
+                self.enemy_fragments[key].update(new_fragments[key])
+            else:
+                to_delete.append(key)
+        for key in to_delete:
+            self.enemy_fragments.pop(key)
+        for key in new_fragments.keys():
+            if key not in self.enemy_fragments.keys():
+                self.enemy_fragments[key] = new_fragments[key]
+
     def prepare_data(self):
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
-        self.players_fragments = [obj for obj in self.visible_objects if obj.obj_type == Type.PLAYER]
+        self.update_enemy_fragments()
         if self.mine[0].get_distance_to(self.way_point) < 10:
             self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
-        if self.tick % 500 == 0:
-            self.move.split = True
-        else:
-            self.move.split = False
         self.move.eject = False
         if self.tick > 2:
             self.move.debug = ''
@@ -171,6 +205,7 @@ class Strategy:
 
     def on_tick(self, data):
         self.tick += 1
+        debug(str(self.tick) + '\t' + json.dumps(data))
         mine, objects = data['Mine'], data['Objects']
         if mine:
             self.visible_objects = []
@@ -182,6 +217,10 @@ class Strategy:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
             self.find_vector_to_move()
+            if self.tick % 250 == 0 and not self.split_lock:
+                self.move.split = True
+            else:
+                self.move.split = False
         return self.move.to_dict()
 
 
@@ -189,5 +228,3 @@ if __name__ == '__main__':
     conf = json.loads(input())
     strategy = Strategy(conf)
     strategy.run()
-
-

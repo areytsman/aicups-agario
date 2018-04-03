@@ -18,7 +18,8 @@ class Obj(Coord):
         self.oid = oid
 
     def get_distance_to(self, obj):
-        return sqrt(abs(self.x - obj.x) ** 2 + abs(self.y - obj.y) ** 2)
+        dist = sqrt(abs(self.x - obj.x) ** 2 + abs(self.y - obj.y) ** 2)
+        return dist
 
     @staticmethod
     def from_dict(obj: dict):
@@ -44,6 +45,31 @@ class Obj(Coord):
         else:
             oid = obj['Id']
         return Obj(x, y, mass, radius, obj_type, oid)
+
+
+class EnemyFragment(Obj):
+    def __init__(self, obj: Obj):
+        super().__init__(obj.x, obj.y, obj.mass, obj.radius, obj.obj_type, obj.oid)
+        self.speed_x = 0
+        self.speed_y = 0
+        self.speed_angle = 0
+        self.split_dist = self.calc_split_dist()
+
+    def calc_split_dist(self):
+        # Game accelerate formula
+        time = (game_config.SPEED_FACTOR + 8) / game_config.VISCOSITY
+        dist = (game_config.SPEED_FACTOR + 8) * time - (game_config.VISCOSITY * (time ** 2)) / 2
+        return dist + self.radius * 0.7
+
+    def update(self, fragment):
+        self.speed_x = fragment.x - self.x
+        self.speed_y = fragment.y - self.y
+        self.speed_angle = atan2(self.speed_y - self.y, self.speed_x - self.x)
+        self.x = fragment.x
+        self.y = fragment.y
+        self.radius = fragment.radius
+        self.mass = fragment.mass
+        self.split_dist = self.calc_split_dist()
 
 
 class PlayerFragment(Obj):
@@ -76,13 +102,9 @@ class PlayerFragment(Obj):
         return PlayerFragment(x, y, mass, radius, oid, speed_x, speed_y, time_to_fade)
 
     def calc_split_dist(self):
-        # Game accelerate formula
-        k = 1 / game_config.SPLIT_SPEED
-        u_vector = game_config.SPLIT_SPEED * k
-        a = (u_vector * (game_config.SPLIT_SPEED / (sqrt(self.mass) / 2)) - game_config.SPLIT_SPEED) * game_config.INERTION_FACTOR / (self.mass / 2)
-        # Finding time to zeroring speed
-        t = -game_config.SPLIT_SPEED / a
-        dist = game_config.SPLIT_SPEED * t + a * (t ** 2) / 2
+        speed = sqrt(self.speed_x ** 2 + self.speed_y ** 2) + 8
+        time = speed / game_config.VISCOSITY
+        dist = speed * time - (game_config.VISCOSITY * (time ** 2)) / 2
         return dist
 
     def calc_time_to_go(self, coord: Coord):
