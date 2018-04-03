@@ -64,17 +64,17 @@ class Strategy:
             for fragment in self.enemy_fragments.values():
                 if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
-                    length = 10000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
+                    length = 20000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
                     if fragment.speed_angle == 0:
                         my_frag_vector += Vector(angle - math.pi, length)
                     else:
                         my_frag_vector += Vector(angle - math.pi, length)
                 if my_frag.mass / 2 < fragment.mass * 1.2 < my_frag.mass:
-                    length = 1500 / my_frag.get_distance_to(fragment)
+                    length = 3000 / my_frag.get_distance_to(fragment)
                     angle = my_frag.get_angle_to(fragment)
                     my_frag_vector += Vector(angle, length)
                 if fragment.mass * 1.2 < my_frag.mass / 2:
-                    length = 2500 / my_frag.get_distance_to(fragment)
+                    length = 5000 / my_frag.get_distance_to(fragment)
                     angle = my_frag.get_angle_to(fragment)
                     my_frag_vector += Vector(angle, length)
                 if game_config.MAX_FRAGS_CNT != len(self.mine):
@@ -86,7 +86,7 @@ class Strategy:
                    piece.x * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2 or \
                    (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2:
                     continue
-                length = 100 / my_frag.get_distance_to(piece)
+                length = 200 / my_frag.get_distance_to(piece)
                 angle = my_frag.get_angle_to(piece)
                 my_frag_vector += Vector(angle, length)
             if my_frag_vector.length == 0:

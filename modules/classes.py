@@ -57,8 +57,8 @@ class EnemyFragment(Obj):
 
     def calc_split_dist(self):
         # Game accelerate formula
-        time = (game_config.SPEED_FACTOR + 8) / game_config.VISCOSITY
-        dist = (game_config.SPEED_FACTOR + 8) * time - (game_config.VISCOSITY * (time ** 2)) / 2
+        time = (game_config.SPEED_FACTOR / sqrt(self.mass) + 8) / game_config.VISCOSITY
+        dist = (game_config.SPEED_FACTOR / sqrt(self.mass) + 8) * time - (game_config.VISCOSITY * (time ** 2)) / 2
         return dist + self.radius * 0.7
 
     def update(self, fragment):
