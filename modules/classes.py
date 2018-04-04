@@ -71,6 +71,10 @@ class EnemyFragment(Obj):
         self.mass = fragment.mass
         self.split_dist = self.calc_split_dist()
 
+    def eat(self, other: Obj):
+        self.mass += other.mass
+        self.radius = 2 * sqrt(self.mass)
+
 
 class PlayerFragment(Obj):
     def __init__(self, x: float, y: float, mass: float, radius: float, oid: str, speed_x: float, speed_y: float,
@@ -82,6 +86,7 @@ class PlayerFragment(Obj):
         self.max_speed = game_config.SPEED_FACTOR / sqrt(mass)
         self.split_dist = self.calc_split_dist()
         self.speed_angle = self.get_angle_to(Coord(self.x + speed_x, self.y + speed_y))
+        self.fused = False
 
     def get_angle_to(self, coord: Coord):
         return atan2(coord.y - self.y, coord.x - self.x)
@@ -138,6 +143,22 @@ class PlayerFragment(Obj):
     def find_vector_move_from(self, coord: Coord):
         opposite_coord = Coord(2 * self.x - coord.x, 2 * self.y - coord.y)
         return self.find_vector_move_to(opposite_coord)
+
+    def fuse(self, other):
+        sum_mass = self.mass + other.mass
+        other_influence = other.mass / sum_mass
+        curr_influence = self.mass / sum_mass
+        self.x = self.x * curr_influence + other.x * other_influence
+        self.y = self.y * curr_influence + other.y * other_influence
+        self.speed_x = self.speed_x * curr_influence + other.speed_x * other_influence
+        self.speed_y = self.speed_y * curr_influence + other.speed_y * other_influence
+        self.mass = sum_mass
+        self.radius = 2 * sqrt(self.mass)
+
+    def eat(self, other: Obj):
+        self.mass += other.mass
+        self.radius = 2 * sqrt(self.mass)
+
 
 
 class Move(Coord):

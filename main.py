@@ -6,24 +6,35 @@ from modules.classes import *
 from random import randint
 import math
 import numpy
+from typing import List, Dict
+import traceback
+
+with open('aicups.log', 'w') as file:
+    file.write('')
+file = open('aicups.log', 'a')
+
+
+def debug(string: str):
+    file.write(string + '\n')
 
 
 class Strategy:
-    visible_objects = []
-    food = []
-    viruses = []
-    enemy_fragments = {}
-    ejects = []
+    visible_objects: List[Obj] = []
+    food: List[Obj] = []
+    viruses: List[Obj] = []
+    enemy_fragments: Dict[str, EnemyFragment] = {}
+    ejects: List[Obj] = []
     move = Move(0, 0, '', False, False, {})
     tick = 0
     split_lock = False
     need_consolidate = False
 
     def __init__(self, config: dict):
-        self.mine = []
+        self.mine: List[PlayerFragment] = []
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.debug = str(config)
+        debug(json.dumps(config))
 
     def run(self):
         while True:
@@ -50,13 +61,29 @@ class Strategy:
         self.move.y = coord.y
 
     def find_vector_to_move(self):
-        for angle in numpy.linspace(0, math.pi * 2, 64):
-            sim = Simulation(angle, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
-        self.go_to(Coord(0, 0))
+        if len([o for o in self.visible_objects if o.obj_type != Type.VIRUS]) > 0:
+            best_destination = None
+            best_score = -99999
+            for angle in numpy.linspace(0, math.pi * 2, 32):
+                max_frag = max(self.mine, key=lambda x: x.mass)
+                destination_x = max_frag.x + cos(angle) * max_frag.radius * 4
+                destination_y = max_frag.y + sin(angle) * max_frag.radius * 4
+                destination = Coord(destination_x, destination_y)
+                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
+                score = sim.calc_score(50, len(self.mine))
+                if score > best_score:
+                    best_score = score
+                    best_destination = destination
+            if best_score != 0:
+                self.go_to(best_destination)
+            else:
+                self.go_to(self.way_point)
+        else:
+            self.go_to(self.way_point)
 
     def update_enemy_fragments(self):
         new_fragments = {f.oid: EnemyFragment(f) for f in self.visible_objects if f.obj_type == Type.PLAYER}
-        if len(self.enemy_fragments) == 0:
+        if len(self.enemy_fragments.items()) == 0:
             self.enemy_fragments = new_fragments
             return
         to_delete = []
@@ -75,7 +102,7 @@ class Strategy:
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.update_enemy_fragments()
-        if self.mine[0].get_distance_to(self.way_point) < 10:
+        if self.mine[0].get_distance_to(self.way_point) < 2 * self.mine[0].radius:
             self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.eject = False
         if self.tick > 2:
@@ -100,6 +127,7 @@ class Strategy:
 
     def on_tick(self, data):
         self.tick += 1
+        debug(str(self.tick) + '\t' + json.dumps(data))
         mine, objects = data['Mine'], data['Objects']
         if mine:
             self.visible_objects = []
@@ -119,6 +147,10 @@ class Strategy:
 
 
 if __name__ == '__main__':
-    conf = json.loads(input())
-    strategy = Strategy(conf)
-    strategy.run()
+    try:
+        conf = json.loads(input())
+        strategy = Strategy(conf)
+        strategy.run()
+    except Exception as e:
+        debug(str(e))
+        traceback.print_exc(file=file)
