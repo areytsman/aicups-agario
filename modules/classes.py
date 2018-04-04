@@ -115,18 +115,13 @@ class PlayerFragment(Obj):
 
     def find_vector_move_to(self, coord: Coord):
         # Finding unit vector
-        vector_len = sqrt(self.speed_x ** 2 + self.speed_y ** 2)
-        if vector_len < 1:
-            k = 0
-        else:
-            k = 1 / vector_len
-        u_vector_x = self.x + self.speed_x * k
-        u_vector_y = self.y + self.speed_y * k
+        u_vector_x = cos(self.speed_angle - pi)
+        u_vector_y = sin(self.speed_angle - pi)
         # Game accelerate formula
         ax = (u_vector_x * self.max_speed - self.speed_x) * game_config.INERTION_FACTOR / self.mass
         ay = (u_vector_y * self.max_speed - self.speed_y) * game_config.INERTION_FACTOR / self.mass
         # Finding time to zeroring speed
-        t = -self.speed_x / ax
+        t = self.speed_x / ax
         # Finding coordinate where speed will zero
         x0 = self.x + self.speed_x * t + ax * (t ** 2) / 2
         y0 = self.y + self.speed_y * t + ay * (t ** 2) / 2
