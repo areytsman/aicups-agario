@@ -1,31 +1,36 @@
 import json
 from modules.obj_types import Type
 from modules import game_config
+from modules.simulation import Simulation
 from modules.classes import *
 from random import randint
 import math
+import numpy
+from typing import List, Dict
+import traceback
 
 with open('aicups.log', 'w') as file:
     file.write('')
-
 file = open('aicups.log', 'a')
+
 
 def debug(string: str):
     file.write(string + '\n')
 
+
 class Strategy:
-    visible_objects = []
-    food = []
-    viruses = []
-    enemy_fragments = {}
-    ejects = []
+    visible_objects: List[Obj] = []
+    food: List[Obj] = []
+    viruses: List[Obj] = []
+    enemy_fragments: Dict[str, EnemyFragment] = {}
+    ejects: List[Obj] = []
     move = Move(0, 0, '', False, False, {})
     tick = 0
     split_lock = False
     need_consolidate = False
 
     def __init__(self, config: dict):
-        self.mine = []
+        self.mine: List[PlayerFragment] = []
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.debug = str(config)
@@ -180,7 +185,7 @@ class Strategy:
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.update_enemy_fragments()
-        if self.mine[0].get_distance_to(self.way_point) < 10:
+        if self.mine[0].get_distance_to(self.way_point) < 2 * self.mine[0].radius:
             self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.eject = False
         if self.tick > 2:
@@ -225,6 +230,10 @@ class Strategy:
 
 
 if __name__ == '__main__':
-    conf = json.loads(input())
-    strategy = Strategy(conf)
-    strategy.run()
+    try:
+        conf = json.loads(input())
+        strategy = Strategy(conf)
+        strategy.run()
+    except Exception as e:
+        debug(str(e))
+        traceback.print_exc(file=file)
