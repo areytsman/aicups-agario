@@ -126,7 +126,12 @@ class PlayerFragment(Obj):
         ax = (u_vector_x * self.max_speed - self.speed_x) * game_config.INERTION_FACTOR / self.mass
         ay = (u_vector_y * self.max_speed - self.speed_y) * game_config.INERTION_FACTOR / self.mass
         # Finding time to zeroring speed
-        t = self.speed_x / ax
+        if ax != 0:
+            t = self.speed_x / ax
+        elif ay != 0:
+            t = self.speed_y / ay
+        else:
+            t = 0
         # Finding coordinate where speed will zero
         x0 = self.x + self.speed_x * t + ax * (t ** 2) / 2
         y0 = self.y + self.speed_y * t + ay * (t ** 2) / 2
@@ -153,6 +158,14 @@ class PlayerFragment(Obj):
     def eat(self, other: Obj):
         self.mass += other.mass
         self.radius = 2 * sqrt(self.mass)
+
+    def split(self):
+        if self.mass < 120:
+            return
+        self.mass = self.mass / 2
+        return PlayerFragment(self.x, self.y, self.mass / 2, 2 * sqrt(self.mass / 2), self.oid + '1',
+                              self.speed_x + 8 * cos(self.speed_angle), self.speed_y + 8 * sin(self.speed_angle),
+                              game_config.TICKS_TIL_FUSION)
 
 
 

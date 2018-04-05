@@ -32,6 +32,14 @@ class Simulation:
             self.simulate(rate)
         return self.score
 
+    def calc_split_score(self, num_ticks: int, rate: int=1):
+        new_fragments = []
+        for fragment in self.mine:
+            new_fragments.append(fragment.split())
+        for fragment in new_fragments:
+            self.mine.append(fragment)
+        return self.calc_score(num_ticks, rate)
+
     def simulate(self, rate: int):
         def eating():
             my_frag_to_delete = set()

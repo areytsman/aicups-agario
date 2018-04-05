@@ -6,7 +6,6 @@ from modules.classes import *
 from random import randint
 import math
 import numpy
-from typing import List, Dict
 import traceback
 
 with open('aicups.log', 'w') as file:
@@ -19,18 +18,18 @@ def debug(string: str):
 
 
 class Strategy:
-    visible_objects: List[Obj] = []
-    food: List[Obj] = []
-    viruses: List[Obj] = []
-    enemy_fragments: Dict[str, EnemyFragment] = {}
-    ejects: List[Obj] = []
+    visible_objects = []
+    food = []
+    viruses = []
+    enemy_fragments = {}
+    ejects = []
     move = Move(0, 0, '', False, False, {})
     tick = 0
     split_lock = False
     need_consolidate = False
 
     def __init__(self, config: dict):
-        self.mine: List[PlayerFragment] = []
+        self.mine = []
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.debug = str(config)
@@ -147,22 +146,45 @@ class Strategy:
         if len(self.enemy_fragments.values()) > 0:
             for fragment in self.enemy_fragments.values():
                 for my_frag in self.mine:
-                    if fragment.mass > my_frag.mass * 1.2:
+                    if fragment.mass > my_frag.mass * 1.2 and \
+                            my_frag.get_distance_to(fragment) < fragment.split_dist * 1.2:
                         self.move.split = False
                         self.need_consolidate = True
                         self.split_lock = True
                         break
                     elif fragment.mass * 1.2 < my_frag.mass / 2:
                         if my_frag.get_distance_to(fragment) < my_frag.split_dist:
-                            if abs(my_frag.get_angle_to(fragment) - my_frag.speed_angle) < math.pi / 12 and not self.split_lock:
-                                self.move.split = True
-                                self.need_consolidate = True
+                            if not self.split_lock and len(self.mine) < game_config.MAX_FRAGS_CNT / 2:
+                                destination_x = my_frag.x + cos(my_frag.speed_angle) * my_frag.radius * 4
+                                destination_y = my_frag.y + sin(my_frag.speed_angle) * my_frag.radius * 4
+                                destination = Coord(destination_x, destination_y)
+                                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
+                                                 self.ejects)
+                                score = sim.calc_split_score(50, 3)
+                                if score >= 50:
+                                    self.move.split = True
+                                    self.need_consolidate = True
                     elif fragment.mass * 1.2 > my_frag.mass / 2:
                         self.move.split = False
                         self.need_consolidate = True
                         self.split_lock = True
         vector_to_go, frag = self.calc_vector_to_go()
-        self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
+        if len(self.mine) < 5 and len(self.visible_objects) < 25:
+            best_destination = None
+            best_score = -99999
+            for angle in numpy.linspace(vector_to_go.angle - math.pi / 16, vector_to_go.angle + math.pi / 16, 5):
+                max_frag = max(self.mine, key=lambda x: x.mass)
+                destination_x = max_frag.x + cos(angle) * max_frag.radius * 4
+                destination_y = max_frag.y + sin(angle) * max_frag.radius * 4
+                destination = Coord(destination_x, destination_y)
+                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
+                score = sim.calc_score(50, len(self.mine))
+                if score > best_score:
+                    best_score = score
+                    best_destination = destination
+            self.go_to(best_destination)
+        else:
+            self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
 
     def update_enemy_fragments(self):
         new_fragments = {f.oid: EnemyFragment(f) for f in self.visible_objects if f.obj_type == Type.PLAYER}
@@ -221,11 +243,12 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
-            self.find_vector_to_move()
             if self.tick % 250 == 0 and not self.split_lock:
                 self.move.split = True
             else:
                 self.move.split = False
+            self.find_vector_to_move()
+
         return self.move.to_dict()
 
 
