@@ -6,15 +6,6 @@ from modules.classes import *
 from random import randint
 import math
 import numpy
-import traceback
-
-with open('aicups.log', 'w') as file:
-    file.write('')
-file = open('aicups.log', 'a')
-
-
-def debug(string: str):
-    file.write(string + '\n')
 
 
 class Strategy:
@@ -33,7 +24,6 @@ class Strategy:
         self.update_config(config)
         self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
         self.move.debug = str(config)
-        debug(json.dumps(config))
 
     def run(self):
         while True:
@@ -232,7 +222,6 @@ class Strategy:
 
     def on_tick(self, data):
         self.tick += 1
-        debug(str(self.tick) + '\t' + json.dumps(data))
         mine, objects = data['Mine'], data['Objects']
         if mine:
             self.visible_objects = []
@@ -253,10 +242,7 @@ class Strategy:
 
 
 if __name__ == '__main__':
-    try:
-        conf = json.loads(input())
-        strategy = Strategy(conf)
-        strategy.run()
-    except Exception as e:
-        debug(str(e))
-        traceback.print_exc(file=file)
+    conf = json.loads(input())
+    strategy = Strategy(conf)
+    strategy.run()
+
