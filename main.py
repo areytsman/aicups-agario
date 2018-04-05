@@ -63,13 +63,13 @@ class Strategy:
         vector = Vector(0, 0)
         frag = self.mine[0]
         avoid_viruses = False
-        hyperbolic_focus = sum([f.radius for f in self.mine])
+        hyperbolic_focus = 2 * sqrt(sum([f.mass for f in self.mine]))
         hyperbolic_coefficient = 4
 
         for my_frag in self.mine:
             my_frag_vector = Vector(0, 0)
             for fragment in self.enemy_fragments.values():
-                if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(
+                if (fragment.mass + game_config.FOOD_MASS * 5) / 1.2 > my_frag.mass and my_frag.get_distance_to(
                         fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
                     length = 20000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
@@ -94,6 +94,11 @@ class Strategy:
                         piece.x * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
                         (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                     continue
+                angle_between_speed_and_piece = atan2(my_frag.speed_y, my_frag.speed_x) - atan2(piece.y - my_frag.y, piece.x - my_frag.x)
+                a = -math.pi / 4
+                b = math.pi / 4
+                if angle_between_speed_and_piece < a or angle_between_speed_and_piece > b:
+                    continue
                 length = 200 / my_frag.get_distance_to(piece)
                 angle = my_frag.get_angle_to(piece)
                 my_frag_vector += Vector(angle, length)
@@ -103,7 +108,7 @@ class Strategy:
                 for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
                     if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
                         angle = my_frag.get_angle_to(virus)
-                        length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
+                        length = 1000 / my_frag.get_distance_to(virus)
                         my_frag_vector += Vector(angle - math.pi, length)
             if my_frag.x * my_frag.y < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
