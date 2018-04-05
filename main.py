@@ -1,6 +1,4 @@
 import json
-from modules.obj_types import Type
-from modules import game_config
 from modules.simulation import Simulation
 from modules.classes import *
 from random import randint
@@ -53,10 +51,14 @@ class Strategy:
         vector = Vector(0, 0)
         frag = self.mine[0]
         avoid_viruses = False
+        hyperbolic_focus = sum([f.radius for f in self.mine])
+        hyperbolic_coefficient = 4
+
         for my_frag in self.mine:
             my_frag_vector = Vector(0, 0)
             for fragment in self.enemy_fragments.values():
-                if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(fragment) < fragment.split_dist:
+                if fragment.mass + game_config.FOOD_MASS * 5 / 1.2 > my_frag.mass and my_frag.get_distance_to(
+                        fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
                     length = 20000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
                     if fragment.speed_angle == 0:
@@ -75,10 +77,10 @@ class Strategy:
                     if fragment.mass * 1.2 > my_frag.mass / (game_config.MAX_FRAGS_CNT - len(self.mine)):
                         avoid_viruses = True
             for piece in self.food:
-                if piece.x * piece.y < 4 * my_frag.radius ** 2 or \
-                   (game_config.GAME_WIDTH - piece.x) * piece.y < 4 * my_frag.radius ** 2 or \
-                   piece.x * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2 or \
-                   (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < 4 * my_frag.radius ** 2:
+                if piece.x * piece.y < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
+                        (game_config.GAME_WIDTH - piece.x) * piece.y < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
+                        piece.x * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
+                        (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                     continue
                 length = 200 / my_frag.get_distance_to(piece)
                 angle = my_frag.get_angle_to(piece)
@@ -91,40 +93,46 @@ class Strategy:
                         angle = my_frag.get_angle_to(virus)
                         length = 1000 * (my_frag.mass / 100) / my_frag.get_distance_to(virus)
                         my_frag_vector += Vector(angle - math.pi, length)
-            if my_frag.x * my_frag.y < 4 * my_frag.radius ** 2:
+            if my_frag.x * my_frag.y < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
                 for fragment in self.enemy_fragments.values():
-                    if fragment.x * fragment.y < 4 * my_frag.radius ** 2:
+                    if fragment.x * fragment.y < hyperbolic_coefficient * hyperbolic_focus ** 2:
                         can_corner = True
                 if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / my_frag.x * my_frag.y - 1
+                    length = hyperbolic_coefficient * hyperbolic_focus ** 2 / my_frag.x * my_frag.y - 1
                     angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
                     my_frag_vector += Vector(angle, length)
-            if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < 4 * my_frag.radius ** 2:
+            if (game_config.GAME_WIDTH - my_frag.x) * my_frag.y < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
                 for fragment in self.enemy_fragments.values():
-                    if (game_config.GAME_WIDTH - fragment.x) * fragment.y < 4 * my_frag.radius ** 2:
+                    if (game_config.GAME_WIDTH - fragment.x) * fragment.y < hyperbolic_coefficient * hyperbolic_focus ** 2:
                         can_corner = True
                 if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
+                    length = hyperbolic_coefficient * hyperbolic_focus ** 2 / (
+                                game_config.GAME_WIDTH - my_frag.x) * my_frag.y - 1
                     angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
                     my_frag_vector += Vector(angle, length)
-            if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
+            if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
                 for fragment in self.enemy_fragments.values():
-                    if fragment.x * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
+                    if fragment.x * (
+                            game_config.GAME_HEIGHT - fragment.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                         can_corner = True
                 if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                    length = hyperbolic_coefficient * hyperbolic_focus ** 2 / my_frag.x * (
+                                game_config.GAME_HEIGHT - my_frag.y) - 1
                     angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
                     my_frag_vector += Vector(angle, length)
-            if (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) < 4 * my_frag.radius ** 2:
+            if (game_config.GAME_WIDTH - my_frag.x) * (
+                    game_config.GAME_HEIGHT - my_frag.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
                 for fragment in self.enemy_fragments.values():
-                    if (game_config.GAME_WIDTH - fragment.x) * (game_config.GAME_HEIGHT - fragment.y) < 4 * my_frag.radius ** 2:
+                    if (game_config.GAME_WIDTH - fragment.x) * (
+                            game_config.GAME_HEIGHT - fragment.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                         can_corner = True
                 if not can_corner:
-                    length = 4 * my_frag.radius ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (game_config.GAME_HEIGHT - my_frag.y) - 1
+                    length = hyperbolic_coefficient * hyperbolic_focus ** 2 / (game_config.GAME_WIDTH - my_frag.x) * (
+                                game_config.GAME_HEIGHT - my_frag.y) - 1
                     angle = my_frag.get_angle_to(Coord(game_config.GAME_HEIGHT / 2, game_config.GAME_WIDTH / 2))
                     my_frag_vector += Vector(angle, length)
             if my_frag_vector.length > vector.length:
@@ -245,4 +253,3 @@ if __name__ == '__main__':
     conf = json.loads(input())
     strategy = Strategy(conf)
     strategy.run()
-
