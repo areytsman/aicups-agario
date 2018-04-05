@@ -168,7 +168,6 @@ class PlayerFragment(Obj):
                               game_config.TICKS_TIL_FUSION)
 
 
-
 class Move(Coord):
     def __init__(self, x: float, y: float, debug: str, split: bool = False, eject: bool = False, sprite: dict = None):
         super().__init__(x, y)
