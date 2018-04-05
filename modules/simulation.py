@@ -35,9 +35,9 @@ class Simulation:
     def calc_split_score(self, num_ticks: int, rate: int=1):
         new_fragments = []
         for fragment in self.mine:
-            splitted = fragment.split()
-            if splitted is not None:
-                new_fragments.append(fragment.split())
+            if fragment.mass > 120:
+                splitted = fragment.split()
+                new_fragments.append(splitted)
         for fragment in new_fragments:
             self.mine.append(fragment)
         return self.calc_score(num_ticks, rate)
