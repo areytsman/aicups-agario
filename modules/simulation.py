@@ -51,12 +51,13 @@ class Simulation:
             for my_frag in self.mine:
                 for enemy in self.enemy:
                     if my_frag.mass > enemy.mass:
-                        if my_frag.get_distance_to(enemy) < my_frag.radius - enemy.radius * 2/3:
+                        dist = my_frag.get_distance_to(enemy)
+                        if dist < my_frag.radius - enemy.radius * 0.8:
                             self.score += 50
                             my_frag.eat(enemy)
                             enemy_to_delete.add(enemy)
                     else:
-                        if my_frag.get_distance_to(enemy) < enemy.radius - my_frag.radius * 2/3:
+                        if my_frag.get_distance_to(enemy) < enemy.radius - my_frag.radius * 0.6:
                             self.score -= 200
                             enemy.eat(my_frag)
                             my_frag_to_delete.add(my_frag)
@@ -71,18 +72,21 @@ class Simulation:
             if fragment.x - fragment.radius < 0:
                 fragment.x = fragment.radius
                 fragment.speed_x = 0
+                self.score -= 1
             if fragment.x + fragment.radius > game_config.GAME_WIDTH:
                 fragment.x = game_config.GAME_WIDTH - fragment.radius
                 fragment.speed_x = 0
+                self.score -= 1
             if fragment.y - fragment.radius < 0:
                 fragment.y = fragment.radius
                 fragment.speed_y = 0
+                self.score -= 1
             if fragment.y + fragment.radius > game_config.GAME_HEIGHT:
                 fragment.y = game_config.GAME_HEIGHT - fragment.radius
                 fragment.speed_y = 0
+                self.score -= 1
 
         def explode(fragment: PlayerFragment):
-            new_fragments = []
             new_frags_cnt = int((fragment.mass / 120)) - 1
             new_frags_cnt = min(new_frags_cnt, game_config.MAX_FRAGS_CNT - len(self.mine))
             new_mass = fragment.mass / (new_frags_cnt + 1)

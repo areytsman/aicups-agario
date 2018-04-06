@@ -54,6 +54,7 @@ class EnemyFragment(Obj):
         self.speed_y = 0
         self.speed_angle = 0
         self.split_dist = self.calc_split_dist()
+        self.ticks_visible = 0
 
     def calc_split_dist(self):
         # Game accelerate formula
@@ -184,8 +185,18 @@ class Move(Coord):
 class Vector(Coord):
     def __init__(self, angle, length):
         super().__init__(length * cos(angle), length * sin(angle))
-        self.length = length
+        self._length = length
         self.angle = angle
+
+    @property
+    def length(self):
+        return self._length
+
+    @length.setter
+    def length(self, value):
+        self._length = value
+        self.x = value * cos(self.angle)
+        self.y = value * sin(self.angle)
 
     def __add__(self, other: Coord):
         x = self.x + other.x
