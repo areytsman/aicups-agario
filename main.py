@@ -72,7 +72,7 @@ class Strategy:
                 if (fragment.mass + game_config.FOOD_MASS * 5) / 1.2 > my_frag.mass and my_frag.get_distance_to(
                         fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
-                    length = 20000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
+                    length = 2000 * my_frag.mass / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
                     if fragment.speed_angle == 0:
                         my_frag_vector += Vector(angle - math.pi, length)
                     else:
@@ -155,7 +155,12 @@ class Strategy:
             if my_frag_vector.length > vector.length:
                 vector = my_frag_vector
                 frag = my_frag
-        return vector, frag
+        return self.crop_vector(vector, frag), frag
+
+    def crop_vector(self, vector: Vector, coord: Coord):
+        if vector.x > game_config.GAME_WIDTH or vector.y > game_config.GAME_HEIGHT or vector.x < 0 or vector.y < 0:
+            new_length = min(game_config.GAME_WIDTH - coord.x, game_config.GAME_HEIGHT - coord.y, coord.x, coord.y)
+            return Vector(vector.angle, new_length)
 
     def find_vector_to_move(self):
         if len(self.enemy_fragments.values()) > 0:
@@ -174,9 +179,9 @@ class Strategy:
                                 destination_y = my_frag.y + sin(my_frag.speed_angle) * my_frag.radius * 4
                                 destination = Coord(destination_x, destination_y)
                                 sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
-                                                 self.ejects)
+                                                 self.ejects, self.viruses)
                                 score = sim.calc_split_score(50, 3)
-                                if score >= 50:
+                                if len(sim.enemy) < len(self.enemy_fragments):
                                     self.move.split = True
                                     self.need_consolidate = True
                     elif fragment.mass * 1.2 > my_frag.mass / 2:
@@ -192,7 +197,8 @@ class Strategy:
                 destination_x = max_frag.x + cos(angle) * max_frag.radius * 4
                 destination_y = max_frag.y + sin(angle) * max_frag.radius * 4
                 destination = Coord(destination_x, destination_y)
-                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
+                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects,
+                                 self.viruses)
                 score = sim.calc_score(50, len(self.mine))
                 if score > best_score:
                     best_score = score

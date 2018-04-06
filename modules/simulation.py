@@ -2,16 +2,18 @@ from typing import List
 from modules.classes import *
 from modules import game_config
 from copy import deepcopy
+import math
 
 
 class Simulation:
     def __init__(self, destination: Coord, mine: List[PlayerFragment], enemy: List[EnemyFragment],
-                 food: List[Obj], ejects: List[Obj]):
+                 food: List[Obj], ejects: List[Obj], viruses: List[Obj]):
         self.destination = self.crop_destination(destination)
         self.mine = deepcopy(mine)
         self.enemy = deepcopy(enemy)
         self.food = deepcopy(food)
         self.ejects = deepcopy(ejects)
+        self.viruses = deepcopy(viruses)
         self.tick = 0
         self.score = 0
 
@@ -68,12 +70,30 @@ class Simulation:
         def check_hard_intersections(fragment):
             if fragment.x - fragment.radius < 0:
                 fragment.x = fragment.radius
+                fragment.speed_x = 0
             if fragment.x + fragment.radius > game_config.GAME_WIDTH:
                 fragment.x = game_config.GAME_WIDTH - fragment.radius
+                fragment.speed_x = 0
             if fragment.y - fragment.radius < 0:
                 fragment.y = fragment.radius
+                fragment.speed_y = 0
             if fragment.y + fragment.radius > game_config.GAME_HEIGHT:
                 fragment.y = game_config.GAME_HEIGHT - fragment.radius
+                fragment.speed_y = 0
+
+        def explode(fragment: PlayerFragment):
+            new_fragments = []
+            new_frags_cnt = int((fragment.mass / 120)) - 1
+            new_frags_cnt = min(new_frags_cnt, game_config.MAX_FRAGS_CNT - len(self.mine))
+            new_mass = fragment.mass / (new_frags_cnt + 1)
+            new_radius = 2 * sqrt(new_mass)
+            for i in range(0, new_frags_cnt):
+                new_angle = fragment.speed_angle - math.pi / 2 + i * math.pi / new_frags_cnt
+                new_speed_x = cos(new_angle)
+                new_speed_y = sin(new_angle)
+                new_fragment = PlayerFragment(fragment.x, fragment.y, new_mass, new_radius, fragment.oid + str(i),
+                                              new_speed_x, new_speed_y, game_config.TICKS_TIL_FUSION)
+                self.mine.append(new_fragment)
 
         self.tick += rate
         self_frags_to_delete = set()
@@ -103,12 +123,12 @@ class Simulation:
             check_hard_intersections(my_frag)
             check_other_my_fragments_intersections(my_frag)
             for food in self.food:
-                if my_frag.get_distance_to(food) < my_frag.radius - food.radius * 2/3:
+                if my_frag.get_distance_to(food) < my_frag.radius - food.radius * 0.34:
                     self.score += 1
                     my_frag.eat(food)
                     food_to_delete.add(food)
             for eject in self.ejects:
-                if my_frag.get_distance_to(eject) < my_frag.radius - eject.radius * 2/3:
+                if my_frag.get_distance_to(eject) < my_frag.radius - eject.radius * 0.34:
                     self.score += 1
                     my_frag.eat(eject)
                     ejects_to_delete.add(eject)
@@ -121,6 +141,19 @@ class Simulation:
         for frag in self_frags_to_delete:
             self.mine.remove(frag)
         self_frags_to_delete.clear()
+        for virus in self.viruses:
+            busted_frag = None
+            for my_frag in self.mine:
+                if my_frag.get_distance_to(virus) < virus.radius * 0.66 + my_frag.radius:
+                    if len(self.mine) < game_config.MAX_FRAGS_CNT:
+                        if my_frag.mass > 120:
+                            if my_frag.radius > virus.radius:
+                                explode(my_frag)
+                                busted_frag = my_frag
+                                break
+            if busted_frag is not None:
+                self.mine.remove(busted_frag)
+
         for enemy in self.enemy:
             enemy.x += enemy.speed_x
             enemy.y += enemy.speed_y
