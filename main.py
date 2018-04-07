@@ -1,7 +1,7 @@
 import json
 from modules.simulation import Simulation
 from modules.classes import *
-from random import randint
+from random import randint, choice
 import math
 import numpy
 
@@ -20,7 +20,11 @@ class Strategy:
     def __init__(self, config: dict):
         self.mine = []
         self.update_config(config)
-        self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
+        self.way_points = [Coord(100, 100), Coord(100, game_config.GAME_HEIGHT - 100),
+                            Coord(game_config.GAME_WIDTH - 100, 100),
+                            Coord(game_config.GAME_WIDTH - 100, game_config.GAME_HEIGHT - 100),
+                            Coord(game_config.GAME_WIDTH / 2, game_config.GAME_HEIGHT / 2)]
+        self.way_point = self.way_points[randint(0, len(self.way_points) - 1)]
         self.move.debug = str(config)
 
     def run(self):
@@ -60,11 +64,9 @@ class Strategy:
                 if (fragment.mass + game_config.FOOD_MASS * 5) / 1.2 > my_frag.mass and my_frag.get_distance_to(
                         fragment) < fragment.split_dist:
                     angle = my_frag.get_angle_to(fragment)
-                    length = 20000 / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
-                    if fragment.speed_angle == 0:
-                        my_frag_vector += Vector(angle - math.pi, length)
-                    else:
-                        my_frag_vector += Vector(angle - math.pi, length)
+                    length = 2000 * my_frag.mass / (my_frag.get_distance_to(fragment) - fragment.radius * 0.7)
+                    map_center = Coord(game_config.GAME_WIDTH / 2, game_config.GAME_HEIGHT / 2)
+                    my_frag_vector += Vector(angle - math.pi, length) + Vector(my_frag.get_angle_to(map_center), length / 1.5)
                 if my_frag.mass / 2 < fragment.mass * 1.2 < my_frag.mass:
                     length = 3000 / my_frag.get_distance_to(fragment)
                     angle = my_frag.get_angle_to(fragment)
@@ -78,9 +80,9 @@ class Strategy:
                         avoid_viruses = True
             for piece in self.food:
                 if piece.x * piece.y < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
-                        (game_config.GAME_WIDTH - piece.x) * piece.y < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
-                        piece.x * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
-                        (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
+                   (game_config.GAME_WIDTH - piece.x) * piece.y < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
+                   piece.x * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2 or \
+                   (game_config.GAME_WIDTH - piece.x) * (game_config.GAME_HEIGHT - piece.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                     continue
                 angle_between_speed_and_piece = atan2(my_frag.speed_y, my_frag.speed_x) - atan2(piece.y - my_frag.y, piece.x - my_frag.x)
                 a = -math.pi / 4
@@ -91,7 +93,7 @@ class Strategy:
                 angle = my_frag.get_angle_to(piece)
                 my_frag_vector += Vector(angle, length)
             if my_frag_vector.length == 0:
-                my_frag_vector += Vector(my_frag.get_angle_to(self.way_point), 1)
+                my_frag_vector += Vector(my_frag.get_angle_to(self.way_point), my_frag.radius)
             if avoid_viruses or self.split_lock:
                 for virus in [v for v in self.viruses if my_frag.get_distance_to(v) < my_frag.radius * 1.1 + v.radius]:
                     if my_frag.mass > game_config.VIRUS_BANG_MASS and my_frag.radius > virus.radius:
@@ -120,8 +122,7 @@ class Strategy:
             if my_frag.x * (game_config.GAME_HEIGHT - my_frag.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                 can_corner = False
                 for fragment in self.enemy_fragments.values():
-                    if fragment.x * (
-                            game_config.GAME_HEIGHT - fragment.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
+                    if fragment.x * (game_config.GAME_HEIGHT - fragment.y) < hyperbolic_coefficient * hyperbolic_focus ** 2:
                         can_corner = True
                 if not can_corner:
                     length = hyperbolic_coefficient * hyperbolic_focus ** 2 / my_frag.x * (
@@ -143,7 +144,23 @@ class Strategy:
             if my_frag_vector.length > vector.length:
                 vector = my_frag_vector
                 frag = my_frag
-        return vector, frag
+        if vector.length < 2 * frag.radius:
+            vector.length = 2 * frag.radius
+        return self.crop_vector(vector, frag), frag
+
+    def crop_vector(self, vector: Vector, coord: Coord):
+        def is_dest_valid(dest: Coord):
+            if dest.x > game_config.GAME_WIDTH \
+                    or dest.y > game_config.GAME_HEIGHT \
+                    or dest.x < 0 \
+                    or dest.y < 0:
+                return False
+            return True
+        dest_coord = Coord(coord.x + vector.x, coord.y + vector.y)
+        while not is_dest_valid(dest_coord):
+            vector = Vector(vector.angle, vector.length / 2)
+            dest_coord = Coord(coord.x + vector.x, coord.y + vector.y)
+        return vector
 
     def find_vector_to_move(self):
         if len(self.enemy_fragments.values()) > 0:
@@ -154,17 +171,19 @@ class Strategy:
                         self.move.split = False
                         self.need_consolidate = True
                         self.split_lock = True
+                        revert_vector = self.crop_vector(Vector(my_frag.speed_angle - math.pi, my_frag.radius * 3), my_frag)
+                        self.way_point = Coord(revert_vector.x, revert_vector.y)
                         break
-                    elif fragment.mass * 1.2 < my_frag.mass / 2:
+                    elif fragment.mass * 1.2 < my_frag.mass / 2 and fragment.ticks_visible > 0:
                         if my_frag.get_distance_to(fragment) < my_frag.split_dist:
                             if not self.split_lock and len(self.mine) < game_config.MAX_FRAGS_CNT / 2:
-                                destination_x = my_frag.x + cos(my_frag.speed_angle) * my_frag.radius * 4
-                                destination_y = my_frag.y + sin(my_frag.speed_angle) * my_frag.radius * 4
+                                destination_x = my_frag.x + cos(my_frag.speed_angle) * my_frag.radius
+                                destination_y = my_frag.y + sin(my_frag.speed_angle) * my_frag.radius
                                 destination = Coord(destination_x, destination_y)
                                 sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
-                                                 self.ejects)
-                                score = sim.calc_split_score(50, 3)
-                                if score >= 50:
+                                                 self.ejects, self.viruses)
+                                sim.calc_split_score(30, 3)
+                                if len(sim.enemy) < len(self.enemy_fragments):
                                     self.move.split = True
                                     self.need_consolidate = True
                     elif fragment.mass * 1.2 > my_frag.mass / 2:
@@ -172,16 +191,27 @@ class Strategy:
                         self.need_consolidate = True
                         self.split_lock = True
         vector_to_go, frag = self.calc_vector_to_go()
-        if len(self.mine) < 5 and len(self.visible_objects) < 25:
+        if len(self.mine) < 5 and len(self.visible_objects) < 25 and len(self.enemy_fragments) < 5:
             best_destination = None
             best_score = -99999
-            for angle in numpy.linspace(vector_to_go.angle - math.pi / 16, vector_to_go.angle + math.pi / 16, 5):
-                max_frag = max(self.mine, key=lambda x: x.mass)
-                destination_x = max_frag.x + cos(angle) * max_frag.radius * 4
-                destination_y = max_frag.y + sin(angle) * max_frag.radius * 4
+            max_frag = max(self.mine, key=lambda x: x.mass)
+            for angle in numpy.linspace(vector_to_go.angle - math.pi / 8, vector_to_go.angle + math.pi / 8, 5):
+                destination_x = max_frag.x + cos(angle) * vector_to_go.length
+                destination_y = max_frag.y + sin(angle) * vector_to_go.length
                 destination = Coord(destination_x, destination_y)
-                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects)
-                score = sim.calc_score(50, len(self.mine))
+                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects,
+                                 self.viruses)
+                score = sim.calc_score(40, len(self.mine))
+                if score > best_score:
+                    best_score = score
+                    best_destination = destination
+            for angle in numpy.linspace(max_frag.speed_angle - math.pi / 16, max_frag.speed_angle + math.pi / 16, 3):
+                destination_x = max_frag.x + cos(angle) * 2 * sqrt(max_frag.mass)
+                destination_y = max_frag.y + sin(angle) * 2 * sqrt(max_frag.mass)
+                destination = Coord(destination_x, destination_y)
+                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
+                                 self.ejects, self.viruses)
+                score = sim.calc_score(40, len(self.mine))
                 if score > best_score:
                     best_score = score
                     best_destination = destination
@@ -198,6 +228,7 @@ class Strategy:
         for key in self.enemy_fragments.keys():
             if key in new_fragments.keys():
                 self.enemy_fragments[key].update(new_fragments[key])
+                self.enemy_fragments[key].ticks_visible += 1
             else:
                 to_delete.append(key)
         for key in to_delete:
@@ -210,8 +241,11 @@ class Strategy:
         self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.update_enemy_fragments()
-        if self.mine[0].get_distance_to(self.way_point) < 2 * self.mine[0].radius:
-            self.way_point = Coord(randint(50, game_config.GAME_WIDTH - 50), randint(50, game_config.GAME_HEIGHT - 50))
+        max_frag = max(self.mine, key=lambda x: x.mass)
+        if self.mine[0].get_distance_to(self.way_point) < 2 * max_frag.radius:
+            self.way_point = self.way_points[randint(0, len(self.way_points) - 1)]
+        if self.way_point not in self.way_points:
+            self.way_point = self.way_points[randint(0, len(self.way_points) - 1)]
         self.move.eject = False
         if self.tick > 2:
             self.move.debug = ''
@@ -245,7 +279,7 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
-            if self.tick % 250 == 0 and not self.split_lock:
+            if not self.split_lock:
                 self.move.split = True
             else:
                 self.move.split = False
