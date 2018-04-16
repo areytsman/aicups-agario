@@ -202,34 +202,39 @@ class Strategy:
                         self.move.split = False
                         self.need_consolidate = True
                         self.split_lock = True
-        vector_to_go, frag = self.calc_vector_to_go()
-        if len(self.mine) < 5 and len(self.visible_objects) < 25 and len(self.enemy_fragments) < 5:
-            best_destination = None
-            best_score = -99999
-            max_frag = max(self.mine, key=lambda x: x.mass)
-            for angle in numpy.linspace(vector_to_go.angle - math.pi / 8, vector_to_go.angle + math.pi / 8, 5):
-                destination_x = max_frag.x + cos(angle) * vector_to_go.length
-                destination_y = max_frag.y + sin(angle) * vector_to_go.length
-                destination = Coord(destination_x, destination_y)
-                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects,
-                                 self.viruses)
-                score = sim.calc_score(40, len(self.mine))
-                if score > best_score:
-                    best_score = score
-                    best_destination = destination
-            for angle in numpy.linspace(max_frag.speed_angle - math.pi / 16, max_frag.speed_angle + math.pi / 16, 3):
-                destination_x = max_frag.x + cos(angle) * 2 * sqrt(max_frag.mass)
-                destination_y = max_frag.y + sin(angle) * 2 * sqrt(max_frag.mass)
-                destination = Coord(destination_x, destination_y)
-                sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
-                                 self.ejects, self.viruses)
-                score = sim.calc_score(40, len(self.mine))
-                if score > best_score:
-                    best_score = score
-                    best_destination = destination
-            self.go_to(best_destination)
+            vector_to_go, frag = self.calc_vector_to_go()
+            if len(self.mine) < 5 and len(self.visible_objects) < 25 and len(self.enemy_fragments) < 5:
+                best_destination = None
+                best_score = -99999
+                max_frag = max(self.mine, key=lambda x: x.mass)
+                for angle in numpy.linspace(vector_to_go.angle - math.pi / 8, vector_to_go.angle + math.pi / 8, 5):
+                    destination_x = max_frag.x + cos(angle) * vector_to_go.length
+                    destination_y = max_frag.y + sin(angle) * vector_to_go.length
+                    destination = Coord(destination_x, destination_y)
+                    sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food, self.ejects,
+                                     self.viruses)
+                    score = sim.calc_score(40, len(self.mine))
+                    if score > best_score:
+                        best_score = score
+                        best_destination = destination
+                for angle in numpy.linspace(max_frag.speed_angle - math.pi / 16, max_frag.speed_angle + math.pi / 16, 3):
+                    destination_x = max_frag.x + cos(angle) * 2 * sqrt(max_frag.mass)
+                    destination_y = max_frag.y + sin(angle) * 2 * sqrt(max_frag.mass)
+                    destination = Coord(destination_x, destination_y)
+                    sim = Simulation(destination, self.mine, list(self.enemy_fragments.values()), self.food,
+                                     self.ejects, self.viruses)
+                    score = sim.calc_score(40, len(self.mine))
+                    if score > best_score:
+                        best_score = score
+                        best_destination = destination
+                self.go_to(best_destination)
+            else:
+                self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
+        elif len(self.food) > 0:
+            dest_coord = self.find_nearest_object(self.food)
+            self.go_to(dest_coord)
         else:
-            self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
+            self.go_to(self.way_point)
 
     def update_enemy_fragments(self):
         new_fragments = {f.oid: EnemyFragment(f) for f in self.visible_objects if f.obj_type == Type.PLAYER}
@@ -292,7 +297,7 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
-            if not self.split_lock:
+            if not self.split_lock and self.tick % 100 == 0:
                 self.move.split = True
             else:
                 self.move.split = False
