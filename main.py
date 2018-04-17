@@ -297,7 +297,7 @@ class Strategy:
             for obj in objects:
                 self.visible_objects.append(Obj.from_dict(obj))
             self.prepare_data()
-            if not self.split_lock and self.tick % 100 == 0:
+            if not self.split_lock:
                 self.move.split = True
             else:
                 self.move.split = False
