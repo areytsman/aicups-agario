@@ -175,7 +175,7 @@ class Strategy:
         return vector
 
     def find_vector_to_move(self):
-        if len(self.enemy_fragments.values()) > 0:
+        if len(self.enemy_fragments.values()) > 0 or len(self.mine) > 1:
             for fragment in self.enemy_fragments.values():
                 for my_frag in self.mine:
                     if fragment.mass > my_frag.mass * 1.2 and \
