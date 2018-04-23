@@ -21,3 +21,12 @@ class PotentialField:
         x = ind[0] * self.crop_factor + self.crop_factor / 2
         y = ind[1] * self.crop_factor + self.crop_factor / 2
         return Coord(x, y)
+
+    def get_nonzero_coords(self):
+        coords = []
+        for index, x in numpy.ndenumerate(self.field):
+            if x > 0:
+                x = index[0] * self.crop_factor + self.crop_factor / 2
+                y = index[1] * self.crop_factor + self.crop_factor / 2
+                coords.append((Coord(x, y), x))
+        return coords

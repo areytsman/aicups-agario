@@ -236,8 +236,14 @@ class Strategy:
             sum_mass = sum(m.mass for m in self.mine)
             crop_factor = (2 * sqrt(sum_mass) + 1) // 2
             pf = PotentialField(int(crop_factor), self.food)
-            dest_coord = pf.get_max_value_coord()
-            self.go_to(dest_coord)
+            coords = pf.get_nonzero_coords()
+            temp = 0
+            for coord in coords:
+                value = coord[1] / self.mine[0].get_distance_to(coord[0])
+                if value > temp:
+                    dest = coord[0]
+                    temp = value
+            self.go_to(dest)
         else:
             self.go_to(self.way_point)
 
