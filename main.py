@@ -1,6 +1,7 @@
 import json
 from modules.simulation import Simulation
 from modules.classes import *
+from modules.pf import PotentialField
 from random import randint, choice
 import math
 import numpy
@@ -164,7 +165,7 @@ class Strategy:
         return vector
 
     def find_vector_to_move(self):
-        if len(self.enemy_fragments.values()) > 0 or len(self.mine) > 1:
+        if len(self.enemy_fragments.values()) > 0:
             for fragment in self.enemy_fragments.values():
                 for my_frag in self.mine:
                     if fragment.mass > my_frag.mass * 1.2 and \
@@ -220,7 +221,10 @@ class Strategy:
             else:
                 self.go_to(frag.find_vector_move_to(Coord(frag.x + vector_to_go.x, frag.y + vector_to_go.y)))
         elif len(self.food) > 0:
-            dest_coord = self.find_nearest_object(self.food)
+            sum_mass = sum(m.mass for m in self.mine)
+            crop_factor = (2 * sqrt(sum_mass) + 1) // 2
+            pf = PotentialField(int(crop_factor), self.food)
+            dest_coord = pf.get_max_value_coord()
             self.go_to(dest_coord)
         else:
             self.go_to(self.way_point)
