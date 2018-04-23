@@ -9,6 +9,7 @@ import numpy
 class Strategy:
     visible_objects = []
     food = []
+    food_dict = {}
     viruses = []
     enemy_fragments = {}
     ejects = []
@@ -163,7 +164,7 @@ class Strategy:
         return vector
 
     def find_vector_to_move(self):
-        if len(self.enemy_fragments.values()) > 0:
+        if len(self.enemy_fragments.values()) > 0 or len(self.mine) > 1:
             for fragment in self.enemy_fragments.values():
                 for my_frag in self.mine:
                     if fragment.mass > my_frag.mass * 1.2 and \
@@ -242,8 +243,21 @@ class Strategy:
             if key not in self.enemy_fragments.keys():
                 self.enemy_fragments[key] = new_fragments[key]
 
+    def update_food(self):
+        visible_food = {(obj.x, obj.y): obj for obj in self.visible_objects if obj.obj_type == Type.FOOD}
+        self.food_dict.update(visible_food)
+        for frag in self.mine:
+            to_delete = set()
+            for food in self.food_dict.keys():
+                if frag.get_distance_to(Coord(food[0], food[1])) < frag.calc_vision_radius(len(self.mine)):
+                    if food not in visible_food.keys():
+                        to_delete.add(food)
+            for food in to_delete:
+                self.food_dict.pop(food)
+        self.food = list(self.food_dict.values())
+
     def prepare_data(self):
-        self.food = [obj for obj in self.visible_objects if obj.obj_type == Type.FOOD or obj.obj_type == Type.EJECT]
+        self.update_food()
         self.viruses = [obj for obj in self.visible_objects if obj.obj_type == Type.VIRUS]
         self.update_enemy_fragments()
         max_frag = max(self.mine, key=lambda x: x.mass)

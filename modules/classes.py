@@ -39,7 +39,7 @@ class Obj(Coord):
         else:
             radius = obj['R']
         if obj_type == Type.FOOD:
-            oid = None
+            oid = Coord(x, y)
         elif obj_type == Type.EJECT:
             oid = obj['pId']
         else:
@@ -106,6 +106,12 @@ class PlayerFragment(Obj):
         else:
             time_to_fade = None
         return PlayerFragment(x, y, mass, radius, oid, speed_x, speed_y, time_to_fade)
+
+    def calc_vision_radius(self, frag_count: int):
+        if frag_count == 1:
+            return self.radius * 4
+        else:
+            return self.radius * 2.5 * sqrt(frag_count)
 
     def calc_split_dist(self):
         speed = sqrt(self.speed_x ** 2 + self.speed_y ** 2) + 8
